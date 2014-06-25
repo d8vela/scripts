@@ -4,7 +4,7 @@
 # Updated Wed May 21 01:49:29 PDT 2014
 
 # Description:
-# This script will take an input SSM data (*.tab) and generate
+# This script will take an input SSM data (*.tab or PSSM-style) and generate
 # an resfile that represents a desired combinatorial library
 
 my $usage = "Usage: ssm2res.pl -ssm <ssm_file.tab> -pdb <pdb_file> -chain <pdb_chain>
@@ -80,6 +80,7 @@ my ($resnum,$mut_res);
 for (split /\,/, $skip_mut_list) {
 	# PDB Position and Mutation
 	($resnum,$mut_res) = $_ =~ /(\d+)(\w+)/;
+	$mut_res =~ tr/a-z/A-Z/;
 	$skip_mut{$resnum}{$mut_res}++;
 }
 
@@ -93,6 +94,7 @@ my ($ssm_pos,$ssm_res);
 for (split /\,/, $skip_ssm_mut_list) {
 	# PDB Position and Mutation
 	($ssm_pos,$ssm_res) = $_ =~ /(\d+)(\w+)/;
+	$ssm_res =~ tr/a-z/A-Z/;
 	$skip_ssm_mut{$ssm_pos}{$ssm_res}++;
 }
 
@@ -106,9 +108,6 @@ for my $expand_data (split /\,/, $expand_codon_pos_list) {
 
 # ---- Get the Design PDB Sequence ----
 my $design_pdb_seq = atom2seq(\%pdb_atom);
-
-# ---- Check for Mutations to be Added by Choice ----
-my %add_mut = add_mut_list($add_ssm_mut_list);
 
 # ---- Check SSM or PSSM Data ----
 my $design_ssm_seq;
@@ -130,7 +129,7 @@ if ($ssm_file) {
 	($design_pdb_seq_aln,$design_ssm_seq_aln) = align_pair($design_pdb_seq,$design_ssm_seq);
 
 	%design_aln = ('PDB' => $design_pdb_seq_aln,
-					  'SSM' => $design_ssm_seq_aln);
+		       'SSM' => $design_ssm_seq_aln);
 }
 elsif ($pssm_file) {
 	
@@ -152,7 +151,7 @@ elsif ($pssm_file) {
 	$design_ssm_seq_aln = $design_pdb_seq; # Assume the same as PDB
 	
 	%design_aln = ('PDB' => $design_pdb_seq_aln,
-					  'SSM' => $design_pssm_seq_aln);
+		       'SSM' => $design_pssm_seq_aln);
 }
 else {
 	die "Error: No input SSM or PSSM file specified!\n";
@@ -169,6 +168,18 @@ my %aln_num = alnSeqNum(\%design_aln,$design_pdb_seq);
 # Convert Alignment Positions to PDB Positions
 my %aln2aa = reverse %aln_num;
 my %aa2pdb = reverse %aa_num;
+
+# ---- Mutations Added by Choice ----
+
+my %add_mut;
+
+# Add PDB Position Mutations
+%add_mut = add_mut_list($add_pdb_mut_list);
+# Convert PDB Position to SSM Positions
+%add_mut = convert_pos_mut(\%add_mut,\%aa_num);
+
+# Add SSM Position Mutations
+%add_mut = add_mut_list($add_ssm_mut_list,\%add_mut);
 
 # ---- Fetch Enriched SSM Mutations ----
 
@@ -269,13 +280,14 @@ for $wt_aa (split //, $design_ssm_seq) {
 	
 	# Place WT in the Front (Again)
 	$mut_aa =~ s/$wt_aa//;
-	$mut_aa =~ s/^/$wt_aa/;
+	$mut_aa =~ s/^/\[$wt_aa\]/;
 	$new_mut_aa =~ s/$wt_aa//;
 	$new_mut_aa =~ s/^/$wt_aa/;
 	
 	# Output Mutations
 	$count++;
 	printf("%s\t%s\t%s\t%-20s\t%s\n",$pdb_pos,$pdb_chain,"PIKAA",$new_mut_aa,"# CODON=$codon POS=$pos ENRICH=$mut_aa");
+	
 }
 
 # Reformat Numbers with Commas
@@ -676,6 +688,24 @@ sub align_pair {
 	
 }
 
+sub convert_pos_mut {
+	# Convert Position Mutation Positions Numbering
+	my $pos_mut_ref = shift;
+	my $pos_convert_ref = shift;
+
+	my %pos_mut = %{$pos_mut_ref};
+	my %pos_convert = %{$pos_convert_ref};
+	
+	my %pos_mut_convert;
+	for my $pos (sort {$a <=> $b} keys %pos_mut) {
+		for my $aa (sort {$a <=> $b} keys %{$pos_mut{$pos}}) {
+			$pos_mut_convert{$pos_convert{$pos}}{$aa} = $pos_mut{$pos}{$aa}
+		}
+	}
+
+	return %pos_mut_convert;
+}
+
 sub ssm_enrich {
 	
 	my $ssm_file = shift;
@@ -796,9 +826,14 @@ sub pssm_enrich {
 
 sub add_mut_list {
 	my $add_mut_list = shift;
+	my $append_mut_ref = shift;
+
+	my %append_mut;
+	%append_mut = %{$append_mut_ref} if $append_mut_ref;
 
 	# Process Mutation List to Add
 	my %add_mut;
+	%add_mut = %append_mut if $append_mut_ref;
 	my ($pos,$aa);
 	for my $mutation (split /\,/, $add_mut_list) {
 		($pos,$aa) = $mutation =~ /(\d+)(\w+)/;
