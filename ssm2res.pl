@@ -26,21 +26,21 @@ use Getopt::Long;
 
 # ---- Special Arguments ----
 my %args=();
-GetOptions(	"ssm:s"=>\$args{ssm},
-			"pssm:s"=>\$args{pssm},
-			"pdb:s"=>\$args{pdb},
-			"chain:s"=>\$args{chain},
-			"ratio_th:f"=>\$args{ratio_th},
-			"interface:f"=>\$args{interface},
-			"surface:f"=>\$args{surface},
-			"skip_pdb_pos:s"=>\$args{skip_pdb_pos},
-			"skip_pdb_pos_mut:s"=>\$args{skip_pdb_pos_mut},
-			"skip_ssm_pos:s"=>\$args{skip_ssm_pos},
-			"skip_ssm_pos_mut:s"=>\$args{skip_ssm_pos_mut},
-			"add_pdb_pos_mut:s"=>\$args{add_pdb_pos_mut},
-			"add_ssm_pos_mut:s"=>\$args{add_ssm_pos_mut},
-			"expand_codon_pos:s"=>\$args{expand_codon_pos},
-			"db:s"=>\$args{db});
+GetOptions("ssm:s"=>\$args{ssm},
+	   "pssm:s"=>\$args{pssm},
+	   "pdb:s"=>\$args{pdb},
+	   "chain:s"=>\$args{chain},
+	   "ratio_th:f"=>\$args{ratio_th},
+	   "interface:f"=>\$args{interface},
+	   "surface:f"=>\$args{surface},
+	   "skip_pdb_pos:s"=>\$args{skip_pdb_pos},
+	   "skip_pdb_pos_mut:s"=>\$args{skip_pdb_pos_mut},
+	   "skip_ssm_pos:s"=>\$args{skip_ssm_pos},
+	   "skip_ssm_pos_mut:s"=>\$args{skip_ssm_pos_mut},
+	   "add_pdb_pos_mut:s"=>\$args{add_pdb_pos_mut},
+	   "add_ssm_pos_mut:s"=>\$args{add_ssm_pos_mut},
+	   "expand_codon_pos:s"=>\$args{expand_codon_pos},
+	   "db:s"=>\$args{db});
 
 # ---- Define Arguments ----
 my $ssm_file = $args{ssm}; # SSM File (The Tab File)
