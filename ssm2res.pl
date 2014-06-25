@@ -16,6 +16,8 @@ my $usage = "Usage: ssm2res.pl -ssm <ssm_file.tab> -pdb <pdb_file> -chain <pdb_c
 		-skip_pdb_pos_mut [PDB residue number and mutation (e.g. 421Y,421M)]
 		-skip_ssm_pos [SSM residue number (e.g. 21,22,25)]
 		-skip_ssm_pos_mut [SSM residue number and mutation (e.g. 92R,92H)]
+		-add_pdb_pos_mut [SSM residue number and mutation (e.g. 83R,108H)]
+		-add_ssm_pos_mut [SSM residue number and mutation (e.g. 34K,34E)]
 		-expand_codon_pos [SSM residue number dot expand number of desired codons (e.g. 92.2,93.6,94.all)]
 		-db [path to aa_calc.txt degenerate codon database (default: /work/davela/data/codons/aa-calc.txt)]\n";
 
@@ -35,6 +37,8 @@ GetOptions(	"ssm:s"=>\$args{ssm},
 			"skip_pdb_pos_mut:s"=>\$args{skip_pdb_pos_mut},
 			"skip_ssm_pos:s"=>\$args{skip_ssm_pos},
 			"skip_ssm_pos_mut:s"=>\$args{skip_ssm_pos_mut},
+			"add_pdb_pos_mut:s"=>\$args{add_pdb_pos_mut},
+			"add_ssm_pos_mut:s"=>\$args{add_ssm_pos_mut},
 			"expand_codon_pos:s"=>\$args{expand_codon_pos},
 			"db:s"=>\$args{db});
 
@@ -52,6 +56,8 @@ my $skip_resnum_list = $args{skip_pdb_pos}; # Skip PDB Residue Position (Comma D
 my $skip_mut_list = $args{skip_pdb_pos_mut}; # Skip Mutation at PDB Position (Comma Delimited List) [e.g. 421Y,421M]
 my $skip_ssm_pos_list = $args{skip_ssm_pos}; # Skip SSM Position (Comma Delimited List)
 my $skip_ssm_mut_list = $args{skip_ssm_pos_mut}; # Skip Mutation at SSM Position (Comma Delimited List) [e.g. 92R,92H]
+my $add_pdb_mut_list = $args{add_pdb_pos_mut}; # Skip Mutation at SSM Position (Comma Delimited List) [e.g. 92R,92H]
+my $add_ssm_mut_list = $args{add_ssm_pos_mut}; # Skip Mutation at SSM Position (Comma Delimited List) [e.g. 92R,92H]
 my $expand_codon_pos_list = $args{expand_codon_pos}; # Expand Codon Choices at SSM Position dot Desired Number of Codons (Comma Delimited List) [e.g. 92.2,93.3,94.all]
 my $db = $args{db} || '/work/davela/data/codons/aa-calc.txt'; # Pre-computed Degenerate Codon Database
 
@@ -100,6 +106,9 @@ for my $expand_data (split /\,/, $expand_codon_pos_list) {
 
 # ---- Get the Design PDB Sequence ----
 my $design_pdb_seq = atom2seq(\%pdb_atom);
+
+# ---- Check for Mutations to be Added by Choice ----
+my %add_mut = add_mut_list($add_ssm_mut_list);
 
 # ---- Check SSM or PSSM Data ----
 my $design_ssm_seq;
@@ -165,15 +174,14 @@ my %aa2pdb = reverse %aa_num;
 
 my %enrich;
 if ($ssm_file) {
-	%enrich = ssm_enrich($ssm_file,$ratio_th);
+	%enrich = ssm_enrich($ssm_file,$ratio_th,\%add_mut);
 }
 elsif ($pssm_file) {
-	%enrich = pssm_enrich($pssm_file,$ratio_th);
+	%enrich = pssm_enrich($pssm_file,$ratio_th,\%add_mut);
 }
 else {
 	die "Error: No input SSM or PSSM file specified!\n";
 }
-
 
 # ---- Output Resfile of the Combinatorial Library ----
 my $count;
@@ -672,6 +680,9 @@ sub ssm_enrich {
 	
 	my $ssm_file = shift;
 	my $ratio_th = shift || 1;
+	my $add_mut_ref = shift;
+
+	my %add_mut = %{$add_mut_ref};
 	
 	open(FILE,"$ssm_file") or die "Cannot open file $ssm_file\n";
 
@@ -707,8 +718,15 @@ sub ssm_enrich {
 	for $pos (sort {$a <=> $b} keys %ratio_aa) {
 		# For Each of the Standard 20 Amino Acids + 1 Stop Codon (Sorted Largest to Smallest Enrichment Value)
 		for $aa (sort { $ratio_aa{$pos}{$b} <=> $ratio_aa{$pos}{$a} } keys %{$ratio_aa{$pos}}) {
-			next if $ratio_aa{$pos}{$aa} <= $ratio_th;
-			$comb{$pos} .= $aa;
+			if ($add_mut{$pos}{$aa}) {
+				$comb{$pos} .= $aa;
+			}
+			elsif ($ratio_aa{$pos}{$aa} <= $ratio_th) {
+				next;
+			}
+			else {
+				$comb{$pos} .= $aa;
+			}
 		}
 		
 	}
@@ -720,6 +738,9 @@ sub pssm_enrich {
 	
 	my $pssm_file = shift;
 	my $ratio_th = shift || 1;
+	my $add_mut_ref = shift;
+
+	my %add_mut = %{$add_mut_ref};
 	
 	# All 20 standard amino acids + '*' stop codon
 	my @aa_all = ('A','C','D','E','F','G','H','I','K','L','M','N','P','Q','R','S','T','V','W','Y','*');
@@ -756,13 +777,37 @@ sub pssm_enrich {
 	for $pos (sort {$a <=> $b} keys %ratio_aa) {
 		# For Each of the Standard 20 Amino Acids + 1 Stop Codon (Sorted Largest to Smallest Enrichment Value)
 		for $aa (sort { $ratio_aa{$pos}{$b} <=> $ratio_aa{$a} } keys %{$ratio_aa{$pos}}) {
-			next if $ratio_aa{$pos}{$aa} <= $ratio_th;
-			$comb{$pos} .= $aa;
+			if ($add_mut{$pos}{$aa}) {
+				$comb{$pos} .= $aa;
+			}
+			elsif ($ratio_aa{$pos}{$aa} <= $ratio_th) {
+				next;
+			}
+			else {
+				$comb{$pos} .= $aa;
+			}
+
 		}
 		
 	}
 	
 	return %comb;
+}
+
+sub add_mut_list {
+	my $add_mut_list = shift;
+
+	# Process Mutation List to Add
+	my %add_mut;
+	my ($pos,$aa);
+	for my $mutation (split /\,/, $add_mut_list) {
+		($pos,$aa) = $mutation =~ /(\d+)(\w+)/;
+		next unless $mutation =~ /[ACDEFGHIKLMNPQRSTVWY\*]/;
+		$aa =~ tr/a-z/A-Z/;
+		$add_mut{$pos}{$aa}++;
+	}
+
+	return %add_mut;
 }
 
 sub aa_calc {
