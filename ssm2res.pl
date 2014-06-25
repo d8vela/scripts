@@ -701,16 +701,12 @@ sub ssm_enrich {
 		
 	}
 	close(FILE);
-	
-	# All 20 standard amino acids
-	my @aa_all = ('A','C','D','E','F','G','H','I','K','L','M','N','P','Q','R','S','T','V','W','Y');
-	
+
+	# For First Position to the Last Position of the Protein Sequence
 	my %comb;
-	
 	for $pos (sort {$a <=> $b} keys %ratio_aa) {
-		
-		for $aa (sort {$a cmp $b} @aa_all) {
-			
+		# For Each of the Standard 20 Amino Acids + 1 Stop Codon (Sorted Largest to Smallest Enrichment Value)
+		for $aa (sort { $ratio_aa{$pos}{$b} <=> $ratio_aa{$pos}{$a} } keys %{$ratio_aa{$pos}}) {
 			next if $ratio_aa{$pos}{$aa} <= $ratio_th;
 			$comb{$pos} .= $aa;
 		}
@@ -736,7 +732,7 @@ sub pssm_enrich {
 	my $pos;
 	my $aa;
 	my $enrich;
-	
+
 	while (<FILE>) {
 		chomp;
 		
@@ -755,11 +751,11 @@ sub pssm_enrich {
 	}
 	close(FILE);
 	
+	# For First Position to the Last Position of the Protein Sequence
 	my %comb;
-	
 	for $pos (sort {$a <=> $b} keys %ratio_aa) {
-		
-		for $aa (sort {$a cmp $b} @aa_all) {
+		# For Each of the Standard 20 Amino Acids + 1 Stop Codon (Sorted Largest to Smallest Enrichment Value)
+		for $aa (sort { $ratio_aa{$pos}{$b} <=> $ratio_aa{$a} } keys %{$ratio_aa{$pos}}) {
 			next if $ratio_aa{$pos}{$aa} <= $ratio_th;
 			$comb{$pos} .= $aa;
 		}
