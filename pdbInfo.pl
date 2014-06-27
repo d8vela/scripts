@@ -1,5 +1,12 @@
 #!/usr/bin/perl
 
+# Written by David La
+# Updated: Fri Jun 27 04:34:14 PDT 2014
+
+# Description:
+# This script will get information about your PDB structure 
+# by getting the data directly from the PDB!
+
 my $usage = "pdbInfo.pl <pdb_id> <pdb_chain>\n";
 
 use strict;
