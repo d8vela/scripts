@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 # Written by David La
-# Updated Wed Mar 5 16:58:20 PST 2014
+# Updated Fri Jul 18 16:01:30 PDT 2014
 
 
 # Description: 
@@ -15,6 +15,7 @@
 # followed by the chain ID (no space).
 # For example: The PDB ID "7TIM" and its corresponding Chain ID "A" should use the case 
 # insensitive ID that corresponds to the file name: "7TIMA.pdb","7TIMA.design.pdb", or "7tima.blah.pdb".
+
 
 my $usage = <<END;
 
@@ -457,10 +458,10 @@ sub seqTransferInsert {
 	
 	# Check if seq_design is shorter than seq_actual
 	my $seq_design = $seq_design_aln;
-	my $seq_design =~ s/-//;
+	$seq_design =~ s/-//;
 	
 	my $seq_actual = $seq_actual_aln;
-	my $seq_actual =~ s/-//;
+	$seq_actual =~ s/-//;
 	
 	my $seq_design_len = length($seq_design);
 	my $seq_actual_len = length($seq_actual);
@@ -597,7 +598,8 @@ sub pdbSeq_RESTful {
 	my $info = $xml->XMLin($data);
 	
 	my $seq = $info->{'SEQUENCE'}{'content'};
-	$seq =~ tr/\s\n//d;
+	$seq =~ s/\s//g;
+	$seq =~ tr/\n//d;
 	
 	#print Dumper($info);
 	
@@ -668,8 +670,18 @@ sub readPDBAtom {
 			# Skip Iodines
 			next if substr($_,12,2) eq "I1";
 			next if substr($_,12,2) eq "I2";
-			# Senenomethionine to Methionine Residue
+			# TYI to TYR Residue
 			substr($_,17,3,"TYR");
+		}
+
+		# Change SEC to CYS, when appropriate
+		if ($_ =~ /^HETATM/ && substr($_,17,3) eq "SEC") {
+			# Hetero-Atom to Atom
+			s/^HETATM/ATOM  /;
+			# Selenium to Sulfur
+			substr($_,12,2,"SG") if substr($_,12,2) eq "SE";
+			# SEC to CYS Residue
+			substr($_,17,3,"CYS");
 		}
 		
 		# Skip non-atom lines
@@ -760,6 +772,16 @@ sub parseChain {
 			next if substr($_,12,2) eq "I2";
 			# Senenomethionine to Methionine Residue
 			substr($_,17,3,"TYR");
+		}
+
+		# Change SEC to CYS, when appropriate
+		if ($_ =~ /^HETATM/ && substr($_,17,3) eq "SEC") {
+			# Hetero-Atom to Atom
+			s/^HETATM/ATOM  /;
+			# Selenium to Sulfur
+			substr($_,12,2,"SG") if substr($_,12,2) eq "SE";
+			# SEC to CYS Residue
+			substr($_,17,3,"CYS");
 		}
 		
 		next unless /^ATOM/;
