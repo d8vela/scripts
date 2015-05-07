@@ -457,10 +457,10 @@ sub seqTransferInsert {
 	
 	# Check if seq_design is shorter than seq_actual
 	my $seq_design = $seq_design_aln;
-	my $seq_design =~ s/-//;
+	$seq_design =~ s/-//;
 	
 	my $seq_actual = $seq_actual_aln;
-	my $seq_actual =~ s/-//;
+	$seq_actual =~ s/-//;
 	
 	my $seq_design_len = length($seq_design);
 	my $seq_actual_len = length($seq_actual);
@@ -597,7 +597,7 @@ sub pdbSeq_RESTful {
 	my $info = $xml->XMLin($data);
 	
 	my $seq = $info->{'SEQUENCE'}{'content'};
-	$seq =~ tr/\s\n//d;
+	$seq =~ tr/\n//d;
 	
 	#print Dumper($info);
 	
