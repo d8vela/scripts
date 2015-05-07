@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 # Written by David La
-# Updated Thu Jun  5 20:41:28 PDT 2014
+# Updated Sat Sep 20 18:37:33 PDT 2014
 
 # Description:
 # Converts resfile from ssm2res.pl to combinatorial libraries that can be 
@@ -35,8 +35,8 @@ GetOptions(	"resfile:s"=>\$args{resfile},
 my $resfile = $args{resfile} or die $usage; # Resfile (needs the commented output from ssm2res.pl)
 my $wt_dna = $args{dna} or die $usage; # WT DNA Sequence
 my $method = $args{method} || 'PCR'; # Experimental Method
-my $max_frag_len = $args{max_frag_len} || 200; # Maximum Fragment Length for PCR Method
-my $overlap_frag_len = $args{overlap_frag_len} || 20; # Overlap Fragment Length
+my $max_frag_len = $args{max_frag_length} || 200; # Maximum Fragment Length for PCR Method
+my $overlap_frag_len = $args{overlap_frag_length} || 20; # Overlap Fragment Length
 my $primer_len = $args{primer_length} || 60; # Primer Length for Kunkel Mutagensis Method
 my $primer_extend = $args{primer_extend} || 10; # Primer Extend Length for Kunkel Mutagensis Method
 my $shift_pos = $args{offset}; # Increment or Decrement Position (if you lengthen or shorten the gene a priori)
@@ -247,7 +247,7 @@ sub dna_complement {
 
 sub dna2lib {
 	# Generate Library for Positions with Single Degenerate Codons
-	# and Marks positions with multiple codons with "+++"
+	# and Marks positions with multiple codons using "+++"
 	
 	my $wt_dna = shift;
 	my $degen_codon_ref = shift;
@@ -277,8 +277,10 @@ sub dna2lib {
 		# Find DNA position
 		$dna_pos = $aa_pos * 3; # Codon per AA
 		$dna_pos = $dna_pos - 2; # First Position of Codon
+		$dna_pos = $dna_pos - 1; # Offset for Internal Numbering
 		
 		# Replace WT Sequence Codon with Degenerate Codon
+		print "$codon $aa_pos $dna_pos\n";
 		substr($degen_dna,$dna_pos,3,$codon);
 		
 	}
