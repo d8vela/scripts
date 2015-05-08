@@ -594,7 +594,7 @@ sub pdbSeq_RESTful {
 	my $curl = '/usr/bin/curl';
 	
 	# Get PDB info for entire pdb entry
-	my $data = `$curl http://www.pdb.org/pdb/rest/das/pdbchainfeatures/sequence?segment=$pdb_id.$pdb_chain 2> /dev/null`;
+	my $data = `$curl http://www.rcsb.org/pdb/rest/das/pdbchainfeatures/sequence?segment=$pdb_id.$pdb_chain 2> /dev/null`;
 	my $info = $xml->XMLin($data);
 	
 	my $seq = $info->{'SEQUENCE'}{'content'};
