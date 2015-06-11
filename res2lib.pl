@@ -6,15 +6,20 @@
 # Description:
 # Converts resfile from ssm2res.pl to combinatorial libraries that can be 
 # ordered as IDT overlaping ultramer fragments (max 200 nucleotides each)
-# if using the default PCR method!
+# if you are using the default PCR-based method!
+
+# Note: 
+# Adds 40 nucleotide pETCON 5' (with ATG in front of your gene) and 3' flanks
+# to each side of your gene!
+#
 
 my $usage = "Usage: res2lib.pl -resfile <resfile> -dna <wt_dna_seq> 
-			-method [pcr|kunkel (default: pcr)]
-			-max_fragment_length [max_fragment_length for the PCR Method (default: 200)]
-			-overlap_fragment_length [overlap_fragment_length for the PCR Method (default: 20)]
-			-primer_length [primer_length for the Kunkel Method (default: 60)]
-			-primer_extend [extend_length for the Kunkel Method (default: 10)]
-			-offset [number_of_positions_to_shift]\n";
+		  -method [PCR|kunkel (default: PCR)]
+		  -max_fragment_length [max_fragment_length for the PCR Method (default: 200)]
+		  -overlap_fragment_length [overlap_fragment_length for the PCR Method (default: 20)]
+		  -primer_length [primer_length for the Kunkel Method (default: 60)]
+		  -primer_extend [extend_length for the Kunkel Method (default: 10)]
+		  -offset [number_of_positions_to_shift]\n";
 
 use strict;
 use Getopt::Long;
@@ -23,19 +28,19 @@ use Getopt::Long;
 
 my %args=();
 GetOptions(	"resfile:s"=>\$args{resfile},
-			"dna:s"=>\$args{dna},
-			"method:s"=>\$args{method},
-			"max_fragment_length:s"=>\$args{max_fragment_length},
-			"overlap_fragment_length:s"=>\$args{overlap_fragment_length},
-			"primer_length:s"=>\$args{primer_length},
-			"primer_extend:s"=>\$args{primer_extend},
-			"offset:n"=>\$args{offset});
+		"dna:s"=>\$args{dna},
+		"method:s"=>\$args{method},
+		"max_fragment_length:s"=>\$args{max_fragment_length},
+		"overlap_fragment_length:s"=>\$args{overlap_fragment_length},
+		"primer_length:s"=>\$args{primer_length},
+		"primer_extend:s"=>\$args{primer_extend},
+		"offset:n"=>\$args{offset});
 
 # ---- Define Arguments ----
 my $resfile = $args{resfile} or die $usage; # Resfile (needs the commented output from ssm2res.pl)
 my $wt_dna = $args{dna} or die $usage; # WT DNA Sequence
 my $method = $args{method} || 'PCR'; # Experimental Method
-my $max_frag_len = $args{max_frag_length} || 200; # Maximum Fragment Length for PCR Method
+my $max_frag_len = $args{max_fragment_length} || 200; # Maximum Fragment Length for PCR Method
 my $overlap_frag_len = $args{overlap_frag_length} || 20; # Overlap Fragment Length
 my $primer_len = $args{primer_length} || 60; # Primer Length for Kunkel Mutagensis Method
 my $primer_extend = $args{primer_extend} || 10; # Primer Extend Length for Kunkel Mutagensis Method
@@ -46,7 +51,13 @@ my $shift_pos = $args{offset}; # Increment or Decrement Position (if you lengthe
 # Get Degenerate Codons from Resfile
 my %degen_codon = res2codon($resfile);
 
-# Convert WT DNA sequence to protein
+# Make Sure DNA Sequence is All Uppercase!
+$wt_dna = uc($wt_dna);
+
+# Remove possible ATG at the beginning of the WT DNA Sequence, because ATG is added later as part of the 5' pETCON flank!
+$wt_dna =~ s/^ATG// if $wt_dna =~ /^ATG/;
+
+# Translate WT DNA sequence to protein
 my $wt_protein = dna2protein($wt_dna);
 
 # Select Experimental Method
@@ -280,7 +291,7 @@ sub dna2lib {
 		$dna_pos = $dna_pos - 1; # Offset for Internal Numbering
 		
 		# Replace WT Sequence Codon with Degenerate Codon
-		print "$codon $aa_pos $dna_pos\n";
+		#print "$codon $aa_pos $dna_pos\n"; # TEST OUTPUT
 		substr($degen_dna,$dna_pos,3,$codon);
 		
 	}
