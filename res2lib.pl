@@ -37,6 +37,7 @@ GetOptions(	"resfile:s"=>\$args{resfile},
 		"offset:n"=>\$args{offset});
 
 # ---- Define Arguments ----
+
 my $resfile = $args{resfile} or die $usage; # Resfile (needs the commented output from ssm2res.pl)
 my $wt_dna = $args{dna} or die $usage; # WT DNA Sequence
 my $method = $args{method} || 'PCR'; # Experimental Method
@@ -82,7 +83,7 @@ if ($method =~ /pc?r?/i) {
 	# Check if there are More Fragments to be Made for Additional Codons
 	if ($degen_dna =~ /\+\+\+/) {
 		# If there are mutliple codons at one position marked by "+++"
-		%frag = frag_expand(\%frag,\%degen_codon);
+	%frag = frag_expand(\%frag,\%degen_codon);
 	}
 
 	# PCR Fragment Assembly: Generate Alternating Forward and Reverse Fragments for Overlap PCR
@@ -649,27 +650,55 @@ sub frag_expand {
 	my $format_id;
 	my $sub_frag_count = 0;
 	my $start;
+	my $num_multi_codon;
+	my $pos_count;
+	my %pos_rem;
 	
 	for my $id (sort {$a <=> $b} keys %frag) {
+
+		#print "FRAG: $id $frag{$id}\n";
 		
 		# DNA Fragment Sequence
 		$dna_frag = $frag{$id};
 		
 		# New Fragment Codon Position
 		$start = 1;
+
+		# Count number of positions with multiple codons
+		$num_multi_codon = 0;
+		$num_multi_codon++ for split /\+\+\+/, $dna_frag;
+		$num_multi_codon--;
+		$pos_count = 0;
+		#print "POS COUNT: $num_multi_codon\n";
 		
 		# If We Find "+++" Positions
 		if ($dna_frag =~ /\+\+\+/) {
 			
 			# Replace "+++" with List of Codons
 			for my $pos (sort {$a <=> $b} keys %degen_codon) {
-				
+
 				# Codons (Comma Delimited)
 				$codon_list = $degen_codon{$pos};
 				
 				# Skip position if it only has a single codon
 				next unless $codon_list =~ /\,/;
-				
+				#print "NOW POS: $pos\n";
+
+				# End loop if no more '+++' (multi codon) positions to evalauate
+				$pos_count++ unless $pos_rem{$pos};
+				#print "POS COUNTER: $pos_count\n";
+				last if $pos_count > $num_multi_codon;
+
+				# Skip previous positions already evaluated
+				#print "BEFORE CURRENT POS: $pos\n";
+				next if $pos_rem{$pos};
+				##print "SKIP: $pos\n" && next if $pos_rem{$pos};
+				#print "AFTER CURRENT POS: $pos\n";
+
+				# Remember previous positions
+				#print "POS REM: $pos\n";
+				$pos_rem{$pos}++;
+
 				# Evaluate Each Codon
 				for $codon (split /\,/, $codon_list) {
 					
@@ -682,13 +711,15 @@ sub frag_expand {
 						
 						# Get Initial Fragment
 						$expand_new{"$id.$sub_frag_count"} = $dna_frag;
+						#print qq(FIRST TEST1: $expand_new{"$id.$sub_frag_count"}\n);
 						
 						# Search and Replace Only First Match
 						$expand_new{"$id.$sub_frag_count"} =~ s/\+\+\+/$codon/;
+						#print qq(FIRST TEST2: $expand_new{"$id.$sub_frag_count"}\n);
 						
-						#print "$codon ($codon_list)\t$pos\t$id.$sub_frag_count |\n";
-						
+						#print "FIRST: $codon ($codon_list)\t$pos\t$id.$sub_frag_count |\n";
 					}
+
 					# Remaining Codon Positions for this Fragment
 					else {
 						
@@ -705,31 +736,34 @@ sub frag_expand {
 							# Get Previous Fragment (if it exists)
 							$dna_frag = $expand{$expand_id};
 							$expand_new{"$og_id.$sub_frag_count"} = $dna_frag;
+							#print qq(OTHER TEST1: $expand_new{"$og_id.$sub_frag_count"}\n);
 							
 							# Search and Replace Only First Match
 							$expand_new{"$og_id.$sub_frag_count"} =~ s/\+\+\+/$codon/;
+							#print qq(OTHER TEST2: $expand_new{"$og_id.$sub_frag_count"}\n);
 							
-							#print "$codon ($codon_list)\t$pos\t$id.$sub_frag_count\n";
-							
+							#print "OTHER: $codon ($codon_list)\t$pos\t$id.$sub_frag_count\n";
 						}
 					}
 					
-					# Add or update %expand_new to the main %expand
-					for my $new_id (keys %expand_new) {
-						$expand{$new_id} = $expand_new{$new_id};
-					}
+				}
+
+				# Add or update %expand_new to the main %expand
+				for my $new_id (keys %expand_new) {
+					$expand{$new_id} = $expand_new{$new_id};
 				}
 				
 				# Reset %expand_new
 				%expand_new = ();
-				
+
 				# Not the First Codon Position for this Fragment After this Point!
 				$start = 0;
-				
+
 				# Reset Fragment Counter
 				$sub_frag_count = 0;
+				
 			}
-			
+
 		}
 		# Add all Other Fragments
 		else {
@@ -738,6 +772,7 @@ sub frag_expand {
 		
 		# Reset New Expand Fragments
 		%expand_new = ();
+
 	}
 	
 	return %expand;
